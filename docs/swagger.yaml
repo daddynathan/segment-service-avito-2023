@@ -1,0 +1,255 @@
+basePath: /
+definitions:
+  model.ErrorDTO:
+    properties:
+      error:
+        type: string
+    type: object
+  model.HistoryTableDTO:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      operation:
+        type: string
+      segment_slug:
+        type: string
+      user_ID:
+        type: integer
+    type: object
+  model.SegmentDTO:
+    properties:
+      auto_percent:
+        type: integer
+      slug:
+        type: string
+    type: object
+  model.SegmentUpdateUserDTO:
+    properties:
+      addslugs:
+        items:
+          type: string
+        type: array
+      removeslugs:
+        items:
+          type: string
+        type: array
+      ttl_hours:
+        type: integer
+    type: object
+  model.SegmentUserDataDTO:
+    properties:
+      autoPercent:
+        description: Процент для автоматического назначения (из segments)
+        type: integer
+      expiresAt:
+        type: string
+      isManuallyAssigned:
+        description: Эти поля будут NULL/false, если пользователь не состоит в сегменте
+          вручную
+        type: boolean
+      slug:
+        description: Имя сегмента (из segments)
+        type: string
+    type: object
+  model.UserResponseDTO:
+    properties:
+      received:
+        type: boolean
+      slug:
+        type: string
+      userID:
+        format: int64
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  title: Сервис динамической сегментации пользователей
+  version: "1.0"
+paths:
+  /segments:
+    get:
+      consumes:
+      - application/json
+      description: Получает все существующие сегменты
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешная операция
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Внутренняя ошибка сервера при получении сегментов
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+      summary: Получить все сегменты
+      tags:
+      - segment
+    post:
+      consumes:
+      - application/json
+      description: Добавляет сегмент
+      parameters:
+      - description: Параметры для добавления сегмента
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.SegmentDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешная операция
+          schema:
+            type: string
+        "400":
+          description: Невалидный запрос или конфликт
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+      summary: Добавить сегмент
+      tags:
+      - segment
+  /segments/history:
+    get:
+      consumes:
+      - application/json
+      description: Получает историю добавления/удаления сегментов у пользователя.
+        Если указаны параметры 'year' и 'month', возвращает данные за период. Иначе
+        возвращает всю доступную историю.
+      parameters:
+      - description: Год для фильтрации истории (например, 2024)
+        in: query
+        name: year
+        type: integer
+      - description: Месяц для фильтрации истории (1-12)
+        in: query
+        name: month
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешная операция. Возвращает список записей истории.
+          schema:
+            items:
+              $ref: '#/definitions/model.HistoryTableDTO'
+            type: array
+        "400":
+          description: 'Невалидный запрос: неверный формат года/месяца или невалидный
+            период.'
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+      summary: Получить историю операций с сегментами
+      tags:
+      - segment
+  /user/{user_id}:
+    get:
+      consumes:
+      - application/json
+      description: Получает активные сегменты пользователя
+      parameters:
+      - description: ID пользователя
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список активных сегментов пользователя
+          schema:
+            items:
+              $ref: '#/definitions/model.SegmentUserDataDTO'
+            type: array
+        "400":
+          description: Невалидный ID пользователя
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+        "404":
+          description: Пользователь не найден
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+        "500":
+          description: Внутренняя ошибка сервера
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+      summary: Получить сегменты пользователя
+      tags:
+      - user
+    patch:
+      consumes:
+      - application/json
+      description: Добавляет или удаляет сегменты у пользователя, опционально устанавливая
+        TTL.
+      parameters:
+      - description: Параметры для добавления/удаления сегментов у пользователя
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.SegmentUpdateUserDTO'
+      - description: ID пользователя
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Операция прошла успешно
+          schema:
+            type: string
+        "400":
+          description: Невалидный запрос или конфликт
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+      summary: Обновить сегменты пользователю
+      tags:
+      - user
+    post:
+      consumes:
+      - application/json
+      description: Добавляет пользователя к существующему сегменту
+      parameters:
+      - description: Параметры для добавления/удаления сегментов
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/model.SegmentDTO'
+      - description: ID пользователя
+        in: path
+        name: user_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Успешная операция
+          schema:
+            $ref: '#/definitions/model.UserResponseDTO'
+        "400":
+          description: Невалидный запрос
+          schema:
+            $ref: '#/definitions/model.ErrorDTO'
+      summary: Добавить пользователя к сегменту
+      tags:
+      - user
+swagger: "2.0"

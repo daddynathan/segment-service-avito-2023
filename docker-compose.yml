@@ -1,0 +1,36 @@
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: segment_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    
+    # Проверка "здоровья" (healthy) PostgreSQL
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d segment_db"] # Проверить, готова ли БД
+      interval: 5s                                           # Проверять каждые 5 секунд
+      timeout: 5s                                            # Таймаут команды 5 секунд
+      retries: 5                                             # Повторить 5 раз, прежде чем объявить сервис "нездоровым"
+
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://user:password@postgres:5432/segment_db?sslmode=disable
+    restart: always
+    
+    # Ждать, пока postgres не будет "здоровым" (healthy)
+    depends_on:
+      postgres:
+        condition: service_healthy # Ждать, пока healthcheck не пройдет успешно
+
+volumes:
+  postgres_data:
